@@ -1,0 +1,51 @@
+- name: Check if Kubernetes is already bootstraped
+  ansible.builtin.stat:
+    path: /etc/kubernetes/pki/ca.key
+  register: kubeadm_ca
+
+- name: Bootstrap cluster
+  when: not kubeadm_ca.stat.exists
+  block:
+    - name: Create kubernetes directory
+      ansible.builtin.file:
+        path: /etc/kubernetes
+        state: directory
+        mode: "0700"
+
+    - name: Import kubeadm configuration
+      ansible.builtin.template:
+        src: kubeadm-config.j2
+        dest: /etc/kubernetes/kubeadm-config.yaml
+        owner: root
+        mode: "0600"
+
+    - name: Start kubeadm
+      ansible.builtin.command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
+      register: kubeadm_output
+
+    - name: Save kubeadm logs
+      ansible.builtin.copy:
+        content: "{{ kubeadm_output }}"
+        dest: "/home/{{ ansible_user }}/kubeadm_output.log"
+
+    - name: Add directory for config file
+      ansible.builtin.file:
+        path: /root/.kube
+        state: directory
+        mode: '0700'
+
+    - name: Add link for config file
+      ansible.builtin.file:
+        src: /etc/kubernetes/admin.conf
+        dest: /root/.kube/config
+        state: link
+
+    - name: Import flannel configuration
+      ansible.builtin.copy:
+        src: flannel.yaml
+        dest: /etc/kubernetes/flannel.yaml
+        owner: root
+        mode: "0644"
+
+    - name: Bootstrap flannel
+      ansible.builtin.command: kubectl apply -f /etc/kubernetes/flannel.yaml

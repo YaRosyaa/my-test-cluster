@@ -1,0 +1,17 @@
+- name:  prepare hosts
+  hosts: all
+  become: true
+  roles:
+    - role: prepare-host
+
+- name: init cluster
+  hosts: control_plane[0] 
+  become: true
+  roles:
+    - first-master 
+
+- name: add master nodes
+  hosts: all
+  become: true
+  roles:
+    - add-host

@@ -1,0 +1,66 @@
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: InitConfiguration
+bootstrapTokens:
+- groups:
+  - system:bootstrappers:kubeadm:default-node-token
+  ttl: 24h0m0s # сколько живут бутстрап токены
+  usages: # для чего можно использовать бутстрап токен
+  - signing
+  - authentication
+localAPIEndpoint:
+  advertiseAddress: {{ ansible_facts.default_ipv4.address }} # IP, на которой API сервер слушает
+  bindPort: 6443 # порт, на котором API сервер слушает
+nodeRegistration: # настройки ноды
+  criSocket: "unix:///var/run/containerd/containerd.sock" # сокет CRI
+  imagePullPolicy: IfNotPresent
+  name: {{ ansible_facts.hostname }} 
+  taints: # теинты. чтоб не запускать ворклоад
+  - effect: NoSchedule
+    key: node-role.kubernetes.io/master
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+certificatesDir: /etc/kubernetes/pki # папка сертов
+clusterName: cluster.local # имя кдастера
+controllerManager: {}
+dns: {}
+etcd:
+  local:
+    dataDir: /var/lib/etcd # куда маунтить данные пода etcd
+imageRepository: "registry.k8s.io"
+apiServer:
+  extraArgs:
+  - name: authorization-mode # Типы авторизации на API сервер
+    value: Node,RBAC
+  - name: bind-address # На каких адресах слушает API сервер
+    value: 0.0.0.0
+  - name: service-cluster-ip-range # IP Сервисов
+    value: "10.244.0.0/18"
+  - name: service-node-port-range # на каких портах работают Сервисы
+    value: 30000-32767
+kubernetesVersion: "1.36.1" # Версия Кубера
+controlPlaneEndpoint: {{ ansible_facts.default_ipv4.address }}:6443 # какой адрес API сервер рекламирует клиентам
+networking:
+  dnsDomain: cluster.local # имя кдастера
+  podSubnet: "10.244.64.0/18" # подсеть подов
+  serviceSubnet: "10.244.0.0/18" # подсеть сервисов
+scheduler: {}
+---
+apiVersion: kubeproxy.config.k8s.io/v1alpha1 # настройки kube-proxy
+kind: KubeProxyConfiguration
+bindAddress: 0.0.0.0
+clusterCIDR: "10.244.64.0/18" # подсеть подов
+mode: nftables # тип правил kube-proxy
+---
+apiVersion: kubelet.config.k8s.io/v1beta1 # конфиг кублета
+kind: KubeletConfiguration
+clusterDNS:
+- 169.254.25.10 # адрес DNS
+systemReserved: # Запросы ресурсов кублета 
+  memory: 512Mi
+  cpu: 500m
+  ephemeral-storage: 2Gi
+# Default: "10Mi"
+containerLogMaxSize: 1Mi # максимум размер логов
+# Default: 5
+containerLogMaxFiles: 3 # максимум количества файлов логов

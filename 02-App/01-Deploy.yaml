@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-static-app
+  
+spec:
+  selector:
+    matchLabels:
+      app: static-app
+      
+  template:
+    metadata:
+      labels:
+        app: static-app
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: static-app
+              topologyKey: kubernetes.io/hostname
+              
+      containers:
+        - name: flask-app
+          image: registry.mygitlab.example.com/my-static-app:1.0
+          imagePullPolicy: IfNotPresent
+
+          ports: 
+            - containerPort: 5000
+
+          envFrom:
+            - secretRef:
+              name: db-credentials
+
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "100Mi"
+            limits:
+              cpu: "500m"
+              memory: "200Mi"

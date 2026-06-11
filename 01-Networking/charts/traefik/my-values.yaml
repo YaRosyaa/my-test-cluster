@@ -1,0 +1,25 @@
+ingressClass:
+  enabled: false
+
+# Создать GatewayClass
+gatewayClass:
+  enabled: true
+  # По умолчанию "traefik"
+  name: ""
+
+providers:
+  kubernetesGateway:
+    enabled: true
+
+# Не создавать Gateway
+gateway:
+  enabled: false
+
+logs:
+  general:
+    format: json
+    level: "INFO"
+    noColor: true
+  access:
+    enabled: true
+    format: json

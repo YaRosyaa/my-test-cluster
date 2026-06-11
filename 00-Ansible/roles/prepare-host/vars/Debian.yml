@@ -1,0 +1,14 @@
+---
+# Системные пакеты
+packages_common:
+  - net-tools
+  - unzip
+  - gpg
+  - iproute2
+  - iptables
+  - vim
+  - git
+  - bash-completion
+  - tar
+  - jq
+  - python3-yaml

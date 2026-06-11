@@ -1,0 +1,169 @@
+---
+- name: Import variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
+
+- name: Prepare hosts [Debian]
+  when: ansible_facts['os_family'] == 'Debian'
+  block:
+    - name: Download packages
+      ansible.builtin.apt:
+        name: "{{ packages_common }}"
+        state: present
+
+    - name: Set timezone
+      community.general.timezone:
+        name: "Europe/Moscow"
+
+    - name: Disable swap
+      when: ansible_facts["swaptotal_mb"] > 0
+      block:
+        - name: Disable runtime swap
+          ansible.builtin.command: "swapoff -a"
+
+        - name: Disable swap - persistent
+          ansible.builtin.replace:
+            path: /etc/fstab
+            regexp: '^(\s*)([^#\n]+\s+)(\w+\s+)swap(\s+.*)$'
+            replace: '#\1\2\3swap\4'
+            backup: true
+
+    - name: Load kernel modules
+      community.general.modprobe:
+        name: "{{ item }}"
+      loop:
+        - br_netfilter
+        - overlay
+
+    - name: Persistent kernel module load
+      ansible.builtin.copy:
+        src: k8s_modules.conf
+        dest: /etc/modules-load.d/k8s_modules.conf
+        owner: root
+        mode: "u=wr,g=r,o=r"
+
+    - name: Persistent kernel options load
+      ansible.builtin.copy:
+        src: 99-k8s.conf
+        dest: /etc/sysctl.d/99-k8s.conf
+        owner: root
+        mode: "u=wr,g=r,o=r"
+
+    - name: Load options
+      ansible.builtin.command: sysctl -f /etc/sysctl.d/99-k8s.conf
+
+    - name: Install containerd
+      ansible.builtin.apt:
+        name:
+          - containerd
+        state: present
+
+    - name: Create Containerd config
+      ansible.builtin.shell: containerd config default > /etc/containerd/config.toml
+      changed_when: true
+
+    - name: Enable Containerd Cgroups
+      ansible.builtin.lineinfile:
+        path: /etc/containerd/config.toml
+        regexp: '^\s*SystemdCgroup = false'
+        line: '    SystemdCgroup = true'
+
+    - name: Point containerd CNI plugins dest
+      ansible.builtin.lineinfile:
+        path: /etc/containerd/config.toml
+        regexp: '^\s*bin_dir = "usr/lib/cni"'
+        line: '    bin_dir = "{{ cni_download_dest }}"'
+
+    - name: Enable and start Containerd service
+      ansible.builtin.service:
+        name: containerd
+        state: restarted
+        enabled: true
+
+    - name: Install Kubernetes binaries
+      block:
+        - name: Install CNI
+          block:
+            - name: Create download dir
+              ansible.builtin.file:
+                path: "{{ cni_download_dest }}"
+                state: directory
+                owner: root
+                mode: "0755"
+
+            - name: Install CNI
+              ansible.builtin.unarchive:
+                src: "https://github.com/containernetworking/plugins/releases/download/{{ cni_plugins_version }}/cni-plugins-linux-{{ arch }}-{{ cni_plugins_version }}.tgz"
+                dest: "{{ cni_download_dest }}"
+                remote_src: true
+                creates: "{{ cni_download_dest }}/dhcp"
+                owner: root
+
+        - name: Install binaries
+          block:
+            - name: Create binaries dir
+              ansible.builtin.file:
+                path: "{{ binaries_install_dir }}"
+                state: directory
+                owner: root
+                mode: "0755"
+
+            - name: Install crictl
+              ansible.builtin.unarchive:
+                src: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-{{ arch }}.tar.gz"
+                dest: "{{ binaries_install_dir }}"
+                creates: "{{ binaries_install_dir }}/crictl"
+                remote_src: true
+                owner: root
+
+            - name: Install kubadm, kubelet
+              ansible.builtin.get_url:
+                url: "https://dl.k8s.io/release/{{ k8s_release }}/bin/linux/{{ arch }}/{{ item }}"
+                dest: "{{ binaries_install_dir }}/{{ item }}"
+                mode: "0755"
+                owner: root
+              loop:
+                - kubectl
+                - kubelet
+                - kubeadm
+
+            - name: Download kubelet systemd unit
+              ansible.builtin.get_url:
+                url: "https://raw.githubusercontent.com/kubernetes/release/{{ kubelet_systemd_version }}/cmd/krel/templates/latest/kubelet/kubelet.service"
+                dest: /usr/lib/systemd/system/kubelet.service
+                mode: '0644'
+
+            - name: Replace binary path in kubelet.service
+              ansible.builtin.replace:
+                path: /usr/lib/systemd/system/kubelet.service
+                regexp: '/usr/bin'
+                replace: '{{ binaries_install_dir }}'
+
+            - name: Create kubelet unit addon dir
+              ansible.builtin.file:
+                path: /usr/lib/systemd/system/kubelet.service.d
+                state: directory
+                owner: root
+                mode: "0755"
+
+            - name: Download kubelet systemd unit addon
+              ansible.builtin.get_url:
+                url: "https://raw.githubusercontent.com/kubernetes/release/{{ kubelet_systemd_version }}/cmd/krel/templates/latest/kubeadm/10-kubeadm.conf"
+                dest: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+                owner: root
+                mode: '0644'
+
+            - name: Replace binary path in kubeadm kubelet unit addon
+              ansible.builtin.replace:
+                path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+                regexp: '/usr/bin'
+                replace: '{{ binaries_install_dir }}'
+
+            - name: Reload systemd
+              ansible.builtin.systemd:
+                daemon_reload: true
+
+            - name: Enable kubelet service
+              ansible.builtin.service:
+                name: kubelet
+                enabled: true
+                state: restarted
