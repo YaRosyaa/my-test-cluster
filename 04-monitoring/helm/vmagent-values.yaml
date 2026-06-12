@@ -1,0 +1,42 @@
+replicaCount: 1
+
+service:
+  enabled: true
+
+route:
+  enabled: true
+  parentRefs:
+    name: traefik-gateway
+    namespace: traefik
+
+# -- Generates `remoteWrite.*` flags and config maps with value content for values, that are of type list of map.
+# Each item should contain `url` param to pass validation.
+remoteWrite:
+  - url: http://victoriametrics-victoria-metrics-single-server:8428/api/v1/write
+
+
+# -- Resource object. Details are [here](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+config:
+  global:
+    scrape_interval: 30s
+
+# -- Extra scrape configs that will be appended to `config`
+extraScrapeConfigs:
+  - job_name: 'node-exporter'
+    kubernetes_sd_configs:
+      - role: endpoints
+    relabel_configs:
+      - source_labels: [ __meta_kubernetes_endpoints_name ]
+        regex: 'nexporter-prometheus-node-exporter'
+        action: keep
+  - job_name: 'kube-state-metrics'
+    static_configs:
+      - targets: [ 'ksm-kube-state-metrics.monitoring.svc.cluster.local:8080' ]

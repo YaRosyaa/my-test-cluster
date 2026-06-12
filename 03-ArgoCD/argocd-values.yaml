@@ -1,0 +1,58 @@
+crds:
+  keep: false
+
+global:
+  logging:
+    format: json
+    # -- Set the global logging level. One of: `debug`, `info`, `warn` or `error`
+    level: info
+
+controller:
+  replicas: 1
+
+configs:
+  params:
+    server.insecure: true
+
+  secret:
+    # -- Bcrypt hashed admin password
+    ## Argo expects the password in the secret to be bcrypt hashed. You can create this hash with
+    ## `htpasswd -nbBC 10 "" $ARGO_PWD | tr -d ':\n' | sed 's/$2y/$2a/'`
+    argocdServerAdminPassword: "$2a$10$HMy2g3Eozxx/ylST6fl.yeu/L/tZnFdOoL.6pgXapndC62byhkvUC"
+
+# Dex
+dex:
+  enabled: false
+
+## Redis
+redis:
+  enabled: true
+  image:
+    repository: "redis"
+    tag: 8.2-alpine3.22
+
+## Notifications controller
+notifications:
+  # -- Enable notifications controller
+  enabled: false
+
+## Server
+server:
+  name: server
+  replicas: 1
+  httproute:
+    enabled: true
+    parentRefs:
+      - name: traefik-gateway
+        namespace: traefik
+        sectionName: weba
+      - name: traefik-gateway
+        namespace: traefik
+        sectionName: webb
+    hostnames:
+      - argocd.example.com
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /

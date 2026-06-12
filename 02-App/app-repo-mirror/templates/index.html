@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои Задачи</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --bg: #f4f7fc;
+            --card-bg: #ffffff;
+            --text: #333;
+            --text-light: #888;
+            --danger: #ff4b4b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            padding-top: 50px;
+            margin: 0;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 25px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 12px 15px;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background-color: #5a52d5;
+            transform: translateY(-2px);
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background: #fff;
+            border-bottom: 1px solid #eee;
+            padding: 15px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: 0.2s;
+        }
+
+        li:first-child {
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+        
+        li:last-child {
+            border-bottom: none;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+
+        li:hover {
+            background-color: #fafafa;
+        }
+
+        .task-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .task-text {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .task-date {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+
+        .delete-btn {
+            background-color: transparent;
+            color: var(--danger);
+            padding: 8px;
+            font-size: 14px;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .delete-btn:hover {
+            background-color: #ffebeb;
+            border-radius: 4px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-light);
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h1>📝 Список задач</h1>
+        
+        <form method="POST" class="input-group">
+            <input type="text" name="task_name" placeholder="Что нужно сделать?" required>
+            <button type="submit">Добавить</button>
+        </form>
+    </div>
+
+    <div class="card" style="padding: 0;">
+        {% if tasks %}
+            <ul>
+                {% for task in tasks %}
+                    <li>
+                        <div class="task-info">
+                            <span class="task-text">{{ task.task_name }}</span>
+                            <span class="task-date">Создано: {{ task.created_at }}</span>
+                        </div>
+                        <a href="/delete/{{ task.id }}" class="delete-btn" onclick="return confirm('Удалить задачу?')">
+                            ✕ Удалить
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="empty-state">Список задач пуст. Добавьте что-нибудь!</div>
+        {% endif %}
+    </div>
+</div>
+
+</body>
+</html>

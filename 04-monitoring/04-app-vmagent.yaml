@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vm
+  namespace: argocd
+  labels:
+    app: monitoring
+spec:
+  destination:
+    name: ''
+    namespace: monitoring
+    server: 'https://kubernetes.default.svc'
+  sources:
+    - repoURL: "https://victoriametrics.github.io/helm-charts"
+      targetRevision: 0.19.0
+      chart: victoria-metrics-agent
+      helm:
+        valueFiles:
+          - $my-values/04-monitoring/helm/vmagent-values.yaml
+    - repoURL: "https://github.com/YaRosyaa/my-test-cluster"
+      ref: my-values
+      targetRevision: main
+  project: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

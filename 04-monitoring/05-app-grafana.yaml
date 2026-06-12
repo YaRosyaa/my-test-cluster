@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ksm
+  namespace: argocd
+  labels:
+    app: monitoring
+spec:
+  destination:
+    name: ''
+    namespace: monitoring
+    server: 'https://kubernetes.default.svc'
+  sources:
+    - repoURL: "https://grafana.github.io/helm-charts"
+      targetRevision: 6.21.2
+      chart: grafana
+      helm:
+        valueFiles:
+          - $my-values/04-monitoring/helm/grafana-values.yaml
+    - repoURL: "https://github.com/YaRosyaa/my-test-cluster"
+      ref: my-values
+      targetRevision: main
+  project: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

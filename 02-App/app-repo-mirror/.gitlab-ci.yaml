@@ -1,0 +1,77 @@
+stages:
+  - lint
+  - build
+  - push
+
+variables:
+  REGISTRY: "registry.mygitlab.example.com"
+  IMAGE_NAME: "$REGISTRY/$CI_PROJECT_PATH"
+  IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
+
+.default_rules: &default_rules
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  - if: '$CI_COMMIT_TAG'
+
+lint:
+  stage: lint
+  image: python:3.11-slim
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  cache:
+    paths:
+      - .cache/pip
+  before_script:
+    - pip install --no-cache-dir flake8 pylint
+    - pip install --no-cache-dir -r requirements.txt
+  script:
+    - flake8 . --exclude=.git
+    - pylint **/*.py --fail-under=8.0
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+build:
+  stage: build
+  image: docker:26
+  services:
+    - docker:26-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+  script:
+    - |
+      docker build \
+        --cache-from "$IMAGE_NAME:latest" \
+        --tag "$IMAGE_NAME:$IMAGE_TAG" \
+        --tag "$IMAGE_NAME:latest" \
+        --label "git.commit=$CI_COMMIT_SHA" \
+        .
+
+    - docker save "$IMAGE_NAME:$IMAGE_TAG" | gzip > image.tar.gz
+  artifacts:
+    paths:
+      - image.tar.gz
+    expire_in: 1 hour
+  rules:
+    *default_rules
+
+
+push:
+  stage: push
+  image: docker:26
+  services:
+    - docker:26-dind
+  dependencies:
+    - build
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+  script:
+    - docker load < image.tar.gz
+    - docker push "$IMAGE_NAME:latest"
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        docker tag "$IMAGE_NAME:$IMAGE_TAG" "$IMAGE_NAME:$CI_COMMIT_TAG"
+        docker push "$IMAGE_NAME:$CI_COMMIT_TAG"
+      fi
+  rules:
+    *default_rules
