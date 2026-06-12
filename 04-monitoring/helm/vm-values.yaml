@@ -1,0 +1,27 @@
+rbac:
+  create: false
+serviceAccount:
+  create: false
+
+server:
+  retentionPeriod: 1h
+  persistentVolume:
+    enabled: false
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  route:
+    enabled: true
+    parentRefs:
+      name: traefik-gateway
+      namespace: traefik
+
+  # Scrape configuration for victoriametrics
+  scrape:
+    # -- If true scrapes targets, creates config map or use specified one with scrape targets
+    enabled: false

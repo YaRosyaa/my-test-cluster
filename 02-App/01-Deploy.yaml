@@ -23,7 +23,7 @@ spec:
               
       containers:
         - name: flask-app
-          image: registry.mygitlab.example.com/my-static-app:1.0
+          image: registry.mygitlab.example.com/test/static-app/my-static-app:1.0
           imagePullPolicy: IfNotPresent
 
           ports: 
