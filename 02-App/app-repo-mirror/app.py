@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, abort
 from prometheus_flask_exporter import PrometheusMetrics
 import mysql.connector
 from mysql.connector import Error
+import sys
 import os
 from datetime import datetime
 
@@ -10,11 +11,12 @@ metrics = PrometheusMetrics(app)
 
 # Конфигурация БД из переменных окружения
 DB_CONFIG = {
-    'host': os.environ.get('DB_HOST', 'db'),
-    'database': os.environ.get('DB_NAME', 'task_manager'),
-    'user': os.environ.get('DB_USER', 'taskuser'),
-    'password': os.environ.get('DB_PASSWORD', 'StrongPassword123!')
+    'host': os.environ.get('DB_HOST'),
+    'database': os.environ.get('DB_NAME'),
+    'user': os.environ.get('DB_USER'),
+    'password': os.environ.get('DB_PASSWORD')
 }
+NODE_INTERNAL_IP = os.environ.get('NODE_INTERNAL_IP')
 
 def get_db_connection():
     """Создание подключения к базе данных"""
@@ -22,7 +24,7 @@ def get_db_connection():
         connection = mysql.connector.connect(**DB_CONFIG)
         return connection
     except Error as e:
-        print(f"Ошибка подключения к БД: {e}")
+        print(f"Error, no DB connection: {e}", file=sys.stderr)
         return None
 
 @app.route('/', methods=['GET', 'POST'])
@@ -38,7 +40,7 @@ def index():
                 connection.commit()
                 cursor.close()
             except Error as e:
-                print(f"Ошибка добавления задачи: {e}")
+                print(f"Error adding task: {e}", file=sys.stderr)
             finally:
                 connection.close()
         return redirect(url_for('index'))
@@ -51,11 +53,24 @@ def index():
             tasks = cursor.fetchall()
             cursor.close()
         except Error as e:
-            print(f"Ошибка получения задач: {e}")
+            print(f"Error accesing tasks: {e}", file=sys.stderr)
         finally:
             connection.close()
     
     return render_template('index.html', tasks=tasks)
+
+@app.route("/readinezz")
+def readiness_check():
+    if request.remote_addr != NODE_INTERNAL_IP:
+        abort(403)
+
+    connection = get_db_connection()
+    if connection:
+      connection.close()
+      return 'All good!' 
+    else:
+      connection.close()
+      return abort(500)
 
 @app.route('/delete/<int:task_id>')
 def delete_task(task_id):

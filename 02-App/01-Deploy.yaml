@@ -29,9 +29,29 @@ spec:
           ports: 
             - containerPort: 5000
 
+          env:
+            - name: NODE_INTERNAL_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
           envFrom:
             - secretRef:
               name: db-credentials
+            
+          livenessProbe:
+            failureThreshold: 3
+            periodSeconds: 10
+            initialDelaySeconds: 3
+            httpGet:
+              port: 80
+          
+          readinessProbe:
+            failureThreshold: 3
+            periodSeconds: 10
+            initialDelaySeconds: 3
+            httpGet:
+              path: /readinezz
+              port: 80
 
           resources:
             requests:
