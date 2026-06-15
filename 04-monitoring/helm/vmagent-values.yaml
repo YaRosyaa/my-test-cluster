@@ -35,8 +35,20 @@ extraScrapeConfigs:
       - role: endpoints
     relabel_configs:
       - source_labels: [ __meta_kubernetes_endpoints_name ]
-        regex: 'nexporter-prometheus-node-exporter'
+        regex: 'nodeexporter-prometheus-node-exporter'
         action: keep
   - job_name: 'kube-state-metrics'
     static_configs:
       - targets: [ 'ksm-kube-state-metrics.monitoring.svc.cluster.local:8080' ]
+  - job_name: 'flask-pods'
+    kubernetes_sd_configs:
+    - role: pod
+    relabelings:
+      # Scrape only app podes
+    - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+      action: keep
+      regex: my-static-app
+      # Scrape only running pods
+    - source_labels: [__meta_kubernetes_pod_phase]
+      action: keep
+      regex: Running

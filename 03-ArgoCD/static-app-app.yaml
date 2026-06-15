@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-static-app
+  namespace: argocd
+  labels:
+    app: my-static-app
+spec:
+  destination:
+    name: ''
+    namespace: default
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: "https://github.com/YaRosyaa/"
+    path: "charts/my-static-app"
+    targetRevision: main
+  project: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

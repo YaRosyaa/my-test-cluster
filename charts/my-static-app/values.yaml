@@ -1,0 +1,124 @@
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 5000
+
+httpRoute:
+  # HTTPRoute enabled.
+  enabled: true
+  # HTTPRoute annotations.
+  annotations: {}
+  # Which Gateways this Route is attached to.
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    sectionName: webb
+    kind: Gateway
+    name: traefik-gateway
+    namespace: traefik
+  hostnames:
+  - app.example.com
+  # List of rules and filters applied.
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+  #   filters:er
+  #     requestHeaderModifier:
+  #   - type: RequestHeaderModifi
+  #       set:
+  #       - name: My-Overwrite-Header
+  #         value: this-is-the-only-value
+  #       remove:
+  #       - User-Agent
+  # - matches:
+  #   - path:
+  #       type: PathPrefix
+  #       value: /echo
+  #     headers:
+  #     - name: version
+  #       value: v2
+
+# Mutually exclusive with autoscaling
+replicaCount: 1
+
+# Mutually exclusive with replicaCount
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80%
+    # - type: Pods
+    #   pods:
+    #     metric:
+    #       name: flask_http_requests_per_second
+    #     target:
+    #       type: AverageValue
+    #       averageValue: 10
+
+image:
+  repository: registry.mygitlab.example.com/test/static-app/my-static-app
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+dbCredentialsSecret: db-credentials
+
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+livenessProbe:
+  failureThreshold: 3
+  periodSeconds: 10
+  initialDelaySeconds: 3
+  httpGet:
+    port: http
+  
+readinessProbe:
+  failureThreshold: 3
+  periodSeconds: 10
+  initialDelaySeconds: 3
+  httpGet:
+    path: /readinezz
+    port: http
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            affinityLabel: 1
+        topologyKey: kubernetes.io/hostname

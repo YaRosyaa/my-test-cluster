@@ -1,0 +1,23 @@
+prometheus:
+  url: http://victoriametrics-victoria-metrics-single-server
+  port: 8428
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+rules:
+  custom:
+    - seriesQuery: 'flask_http_requests_total{job="flask-pods", kubernetes_namespace!="", kubernetes_pod_name!=""}'
+      resources:
+        overrides:
+          kubernetes_namespace: {resource: "namespace"}
+          kubernetes_pod_name: {resource: "pod"}
+      name:
+        matches: "^(.*)_total"
+        replace: "$(1)_per_second"
+      metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>[1m])) by (<<.GroupBy>>)'

@@ -1,0 +1,9 @@
+autoscaling:
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: flask_http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: 10
