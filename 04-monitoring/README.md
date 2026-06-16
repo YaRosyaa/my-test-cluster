@@ -16,10 +16,10 @@
 
 ---
 ## Скейлинг приложения по количеству запросов
-`06-app-prometheus-adapter` - *Prometheus Adapter* - Делает метрики доступными через Metrics API. Полученные метирки можно использовать в HPA для скейлинга деплоя по ним.
+`06-app-prometheus-adapter` - *Prometheus Adapter* - Делает метрики доступными через Metrics API. Полученные метрики можно использовать в HPA для скейлинга деплоя по ним.
 > В данном случае используется метрика `flask_http_requests_total` (counter) из *flask exporter*. В правиле *Prometheus Adapter* метрики агрегируются внутри пода и суммируются.
 
 Новую метрику нужно применить в HPA, написанный helm-чарт позволяет сделать это коротким изменением values через Application ArgoCD
 ```bash
-helm upgrade app -f ./07-new-values.yaml
+kubectl apply -f 07-app-new-static-app.yaml
 ```
