@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vector
+  namespace: argocd
+  labels:
+    app: os
+spec:
+  destination:
+    name: ''
+    namespace: os
+    server: 'https://kubernetes.default.svc'
+  sources:
+    - repoURL: "https://github.com/vectordotdev/helm-charts"
+      targetRevision: 0.56.0
+      chart: vector
+      helm:
+        valueFiles:
+          - $my-values/05-logs/helm/vector-values.yaml
+    - repoURL: "https://github.com/YaRosyaa/my-test-cluster"
+      ref: my-values
+      targetRevision: main
+  project: os
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

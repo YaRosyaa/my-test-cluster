@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-opensearch
+  namespace: argocd
+  labels:
+    app: os
+spec:
+  destination:
+    name: ''
+    namespace: os
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: "https://github.com/YaRosyaa/"
+    path: "charts/my-opensearch"
+    targetRevision: main
+    helm:
+        valueFiles:
+          - ../../05-logs/helm/my-opensearch-values.yaml
+  project: os
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

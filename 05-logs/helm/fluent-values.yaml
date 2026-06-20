@@ -1,0 +1,108 @@
+
+# -- Resources for the default container.
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+config:
+  # -- The [Parsers](https://docs.fluentbit.io/manual/administration/configuring-fluent-bit/yaml/parsers-section) section allows you to define custom parsers.
+  parsers:
+    - name: kubernetes-tag
+      format: regex
+      regex: ^(?<namespace_name>[^.]+)\.(?<pod_name>[^.]+)\.(?<container_name>[^.]+)
+    - name: sys_log
+      format: regex
+      regex: (?<message>(?<time>[^ ]*\s{1,2}[^ ]*\s[^ ]*)\s(?<host>[a-zA-Z0-9_\/\.\-]*)\s.*)$
+      time_format: "%b %d %H:%M:%S"
+      time_keep: off
+      time_key: time
+
+  pipeline:
+    # -- The pipeline inputs configure the plugins responsible for collecting or receiving data. If storage is not enabled the `db` key will be removed to stop errors.
+    inputs:
+      - name: tail
+        alias: k8s-logs
+        path: /var/log/containers/*.log
+        tag_regex: (?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace_name>[^_]+)_(?<container_name>.+)-
+        tag: kube.<namespace_name>.<pod_name>.<container_name>
+        read_from_head: true
+        multiline.parser: cri
+        skip_long_lines: true
+        skip_empty_lines: true
+        storage.type: ${STORAGE_TYPE_PREFER_FS}
+        db: ${STORAGE_PATH}/tail.db
+        processors:
+          logs:
+            - name: kubernetes
+              use_kubelet: ${KUBELET_ENDPOINT}
+              kubelet_host: ${NODE_IP}
+              kubelet_port: 10250
+              kube_tag_prefix: kube.
+              regex_parser: kubernetes-tag
+              k8s-logging.parser: true
+              k8s-logging.exclude: true
+              merge_log: on
+              keep_log: off
+
+      - name: tail
+        tag: host.log.secure
+        parser: sys_log
+        path: /var/log/secure
+        db: ${STORAGE_PATH}/_secure.db
+        processors:
+          logs:
+            - name: modify
+              Set:
+                - app: syslog
+                - file: /var/log/secure
+      - name: tail
+        tag: host.log.messages
+        parser: sys_log
+        path: /var/log/messages
+        db: ${STORAGE_PATH}/_messages.db
+        processors:
+          logs:
+            - name: modify
+              Set:
+                - app: syslog
+                - file: /var/log/messages
+      - name: tail
+        tag: host.log.cron
+        parser: sys_log
+        path: /var/log/cron
+        db: ${STORAGE_PATH}/_cron.db
+        processors:
+          logs:
+            - name: modify
+              Set:
+                - app: syslog
+                - file: /var/log/cron
+
+
+    # -- The pipeline filters configure the plugins responsible for processing data.
+    filters: []
+
+    # -- The pipeline outputs configure the plugins responsible for storing or forwarding data.
+    outputs:
+      - name: kafka
+        match: 'kube.*'
+        brockers: kafka.kafka.svc:9092
+        topics: kube
+      - name: kafka
+        match: 'host.*'
+        brockers: kafka.kafka.svc:9092
+        topics: host
+
+# -- Additional YAML configuration to mount as YAML files to /fluent-bit/etc.
+extraConfig: {}
+# upstream:
+#   upstream_servers:
+#     - name: test
+#       nodes:
+#         - name: node-1
+#           host: 127.0.0.1
+#           port: 43000

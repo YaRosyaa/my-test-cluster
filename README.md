@@ -5,7 +5,7 @@
 
 Состав кластера и используемые технологии регулярно обновляются по мере изучения новых инструментов и best practice.
 
-*Текущий стек: Ansible, Kubernetes, Cert-Manager, MetalLB, GatewayAPI (Traefik Gateway), GitLab CI, ArgoCD, Victoria Metrics + Grafana + различные экспортеры*
+*Текущий стек: Ansible, Kubernetes, Cert-Manager, MetalLB, GatewayAPI (Traefik Gateway), GitLab CI, ArgoCD, Victoria Metrics + Grafana + различные экспортеры, FluentBit, Apache Kafka, Vector, Opensearch*
 # Этапы
 ```bash
 ├───00-Ansible           # Установка зависимостей и развёртывание кластера Kubernetes
@@ -23,8 +23,11 @@
 ├───02-App               # Манифесты деплоя веб-приложения
 │   └───app-repo-mirror  # Зеркало репозиторияЮ устанавливаемого приложения
 ├───03-ArgoCD            # ArgoCD
-└───04-monitoring        # Контур мониторинга кластера в виде ArgoCD Application
+├───04-monitoring        # Контур мониторинга кластера в виде ArgoCD Application
+├───05-logs              # Контур сбора логов
+└───charts               
+    ├───my-opensearch    # Модифицированный helm-чарт Opensearch и Opensearch-dashboard
+    └───my-static-app    # helm-чарт веб-приложения
 ```
 # В процессе
-1. Сбор логов нод и приложений: *FluentBit -> Kafka -> Vector -> OpenSearch*
-2. Установка Vault для хранения данных приложений, хранения TLS-ключей и выдачи серитфикатов
+1. Vault для хранения данных приложений, хранения TLS-ключей и выдачи сертификатов

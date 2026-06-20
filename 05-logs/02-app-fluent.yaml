@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fluentbit
+  namespace: argocd
+  labels:
+    app: os
+spec:
+  destination:
+    name: ''
+    namespace: os
+    server: 'https://kubernetes.default.svc'
+  sources:
+    - repoURL: "https://github.com/fluent/helm-charts/"
+      targetRevision: 1.0.7
+      chart: fluent-bit-collector
+      helm:
+        valueFiles:
+          - $my-values/05-logs/helm/fluent-values.yaml
+    - repoURL: "https://github.com/YaRosyaa/my-test-cluster"
+      ref: my-values
+      targetRevision: main
+  project: os
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

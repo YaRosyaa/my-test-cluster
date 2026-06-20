@@ -1,0 +1,103 @@
+# Each role is created with the following workloads:
+# Agent = DaemonSet
+# Aggregator = StatefulSet
+# Stateless-Aggregator = Deployment
+role: "Stateless-Aggregator"
+
+# resources -- Set Vector resource requests and limits.
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# Configuration for Vector's Service.
+service:
+  # service.enabled -- If true, create and provide a Service resource for Vector.
+  enabled: false
+
+# Configuration for Vector's Headless Service.
+serviceHeadless:
+  # serviceHeadless.enabled -- If true, create and provide a Headless Service resource for Vector.
+  enabled: false
+
+# customConfig -- Override Vector's default configs, if used **all** options need to be specified. This section supports
+# using helm templates to populate dynamic values. See Vector's [configuration documentation](https://vector.dev/docs/reference/configuration/)
+# for all options.
+customConfig: 
+  data_dir: /vector-data-dir
+  api:
+    enabled: true
+    address: "0.0.0.0:8686"
+    playground: false
+  sources:
+    kafka-host:
+      type: "kafka"
+      bootstrap_servers: "kafka.kafka.svc:9092"
+      group_id: "logs"
+      key_field: "message_key"
+      topics:
+        - host
+    kafka-kube:
+      type: "kafka"
+      bootstrap_servers: "kafka.kafka.svc:9092"
+      group_id: "logs"
+      key_field: "message_key"
+      topics:
+        - kube
+  transforms:
+    transform-kube:
+      type: remap
+      inputs:
+        - kafka-kube
+      timezone: local
+      source: |
+        . = parse_json!(.message)
+        .timestamp, err = to_unix_timestamp(."@timestamp")
+        del(."@timestamp")
+        del(.kubetnetes.labels)
+        del(.kubetnetes.annotations)
+
+    transform-host:
+      type: remap
+      inputs:
+        - kafka-host
+      timezone: local
+      source: |
+        . = parse_json!(.message)
+        .timestamp, err = to_unix_timestamp(."@timestamp")
+        del(."@timestamp")
+
+  sinks:
+    os-host:
+      inputs:
+        - transform-host
+      type: elasticsearch
+      endpoint: "https://opensearch-cluster-master.os.svc:9200"
+      tls:
+        verify_certificate: false
+      auth:
+        user: admin
+        password: admin
+        strategy: basic
+      suppress_type_name: true
+      bulk:
+        action: "create"
+        index: 'host-%Y-%m-%d'
+    os-kube:
+      inputs:
+        - transform-kube
+      type: elasticsearch
+      endpoint: "https://opensearch-cluster-master.os.svc:9200"
+      tls:
+        verify_certificate: false
+      auth:
+        user: admin
+        password: admin
+        strategy: basic
+      suppress_type_name: true
+      bulk:
+        action: "create"
+        index: 'kube-%Y-%m-%d'
